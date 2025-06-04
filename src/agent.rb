@@ -13,7 +13,7 @@ class Agent
   def initialize
     model_id = ENV.fetch('MODEL_ID', 'qwen3:14b')
     provider = ENV.fetch('PROVIDER', 'ollama')
-    @chat = RubyLLM.chat(model: model_id, provider: provider, assume_model_exists: true)
+    @chat = RubyLLM.chat(model: model_id, provider: provider, assume_model_exists: provider == 'ollama')
     @chat.with_instructions <<~INSTRUCTIONS
       Perform the tasks requested as quickly as possible.
       /no_think
