@@ -6,7 +6,7 @@ require_relative "tools/run_shell_command"
 
 class Agent
   def initialize
-    @chat = RubyLLM.chat
+    @chat = RubyLLM.chat(model: "qwen3:14b", provider: :ollama, assume_model_exists: true)
     @chat.with_tools(Tools::ReadFile, Tools::ListFiles, Tools::EditFile, Tools::RunShellCommand)
   end
 

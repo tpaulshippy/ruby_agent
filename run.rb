@@ -10,8 +10,8 @@ require "ruby_llm"
 require_relative "src/agent"
 
 RubyLLM.configure do |config|
-  config.anthropic_api_key = ENV.fetch("ANTHROPIC_API_KEY", nil)
-  config.default_model = "claude-3-7-sonnet"
+  config.ollama_api_base = ENV.fetch("OLLAMA_API_BASE", "http://localhost:11434/v1")
+  config.default_model = "qwen3:14b"
 end
 
 Agent.new.run
