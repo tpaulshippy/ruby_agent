@@ -12,7 +12,6 @@ require_relative "src/agent"
 
 RubyLLM.configure do |config|
   config.ollama_api_base = ENV.fetch("OLLAMA_API_BASE", "http://localhost:11434/v1")
-  config.default_model = "qwen3:14b"
 end
 
 Agent.new.run
