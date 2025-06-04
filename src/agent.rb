@@ -4,7 +4,9 @@ require_relative "tools/read_file"
 require_relative "tools/list_files"
 require_relative "tools/edit_file"
 require_relative "tools/run_shell_command"
+require_relative "tools/token_stats"
 require_relative "mcp/client"
+require_relative "token_tracker"
 
 class Agent
   def initialize
@@ -16,7 +18,15 @@ class Agent
       /no_think
     INSTRUCTIONS
     
-    tools = [Tools::ReadFile, Tools::ListFiles, Tools::EditFile, Tools::RunShellCommand]
+    @token_tracker = TokenTracker.new
+    
+    tools = [
+      Tools::ReadFile, 
+      Tools::ListFiles, 
+      Tools::EditFile, 
+      Tools::RunShellCommand,
+      Tools::TokenStats.new(@token_tracker)
+    ]
     
     mcp_client = MCP::Client.from_json_file || MCP::Client.from_env
     if mcp_client
@@ -29,15 +39,38 @@ class Agent
 
   def run
     puts "Chat with the agent. Type 'exit' to ... well, exit"
+    puts "Special commands: 'tokens' (session stats), 'global_tokens' (global stats), 'reset_tokens' (reset session)"
+    
     loop do
       print "> "
       user_input = gets.chomp
-      break if user_input == "exit"
+      
+      case user_input
+      when "exit"
+        @token_tracker.display_session_summary
+        break
+      when "tokens"
+        @token_tracker.display_session_summary
+        next
+      when "global_tokens"
+        @token_tracker.display_global_summary
+        next
+      when "reset_tokens"
+        @token_tracker.reset_session
+        puts "Session token counters reset."
+        next
+      end
 
       response = @chat.ask user_input do |chunk|
         print chunk.content
       end
       puts ""
+      
+      usage_stats = @token_tracker.track_usage(response)
+      puts "\n💰 Tokens used - This request: #{usage_stats[:this_request][:total]} " \
+           "(#{usage_stats[:this_request][:input]} in, #{usage_stats[:this_request][:output]} out) | " \
+           "Session total: #{usage_stats[:session][:total]}"
     end
   end
 end
+
