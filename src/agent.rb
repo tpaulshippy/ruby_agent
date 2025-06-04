@@ -6,7 +6,6 @@ require_relative 'tools/read_file'
 require_relative 'tools/list_files'
 require_relative 'tools/edit_file'
 require_relative 'tools/run_shell_command'
-require_relative 'tools/token_stats'
 require_relative 'mcp/client'
 require_relative 'token_tracker'
 
@@ -26,8 +25,7 @@ class Agent
       Tools::ReadFile,
       Tools::ListFiles,
       Tools::EditFile,
-      Tools::RunShellCommand,
-      Tools::TokenStats.new(@token_tracker)
+      Tools::RunShellCommand
     ]
 
     mcp_client = MCP::Client.from_json_file || MCP::Client.from_env
@@ -41,7 +39,7 @@ class Agent
 
   def run
     puts "Chat with the agent. Type 'exit' to ... well, exit"
-    puts "Special commands: 'tokens' (session stats), 'global_tokens' (global stats), 'reset_tokens' (reset session)"
+    puts "Special commands: '/tokens' (session stats), '/global_tokens' (global stats), '/reset_tokens' (reset session)"
 
     loop do
       print '> '
@@ -51,13 +49,13 @@ class Agent
       when 'exit'
         @token_tracker.display_session_summary
         break
-      when 'tokens'
+      when '/tokens'
         @token_tracker.display_session_summary
         next
-      when 'global_tokens'
+      when '/global_tokens'
         @token_tracker.display_global_summary
         next
-      when 'reset_tokens'
+      when '/reset_tokens'
         @token_tracker.reset_session
         puts 'Session token counters reset.'
         next
