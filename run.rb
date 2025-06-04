@@ -7,6 +7,7 @@ Dir.chdir(__dir__) do
 end
 
 require "ruby_llm"
+require "ruby_llm/mcp"
 require_relative "src/agent"
 
 RubyLLM.configure do |config|

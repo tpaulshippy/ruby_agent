@@ -49,6 +49,13 @@ GEM
       faraday-retry (>= 1)
       marcel (~> 1.0)
       zeitwerk (~> 2)
+    ruby_llm-mcp (0.0.2)
+      faraday (>= 1.10.0)
+      faraday-multipart (>= 1)
+      faraday-net_http (>= 1)
+      faraday-retry (>= 1)
+      ruby_llm (~> 1.2)
+      zeitwerk (~> 2)
     stringio (3.1.7)
     uri (1.0.3)
     zeitwerk (2.7.3)
@@ -62,6 +69,7 @@ DEPENDENCIES
   dotenv
   minitest
   ruby_llm
+  ruby_llm-mcp
 
 BUNDLED WITH
    2.6.3

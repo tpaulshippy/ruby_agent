@@ -1,8 +1,10 @@
 require "ruby_llm"
+require "ruby_llm/mcp"
 require_relative "tools/read_file"
 require_relative "tools/list_files"
 require_relative "tools/edit_file"
 require_relative "tools/run_shell_command"
+require_relative "mcp/client"
 
 class Agent
   def initialize
@@ -11,7 +13,16 @@ class Agent
       Perform the tasks requested as quickly as possible.
       /no_think
     INSTRUCTIONS
-    @chat.with_tools(Tools::ReadFile, Tools::ListFiles, Tools::EditFile, Tools::RunShellCommand)
+    
+    tools = [Tools::ReadFile, Tools::ListFiles, Tools::EditFile, Tools::RunShellCommand]
+    
+    mcp_client = MCP::Client.from_json_file || MCP::Client.from_env
+    if mcp_client
+      puts "MCP client connected. Adding MCP tools..."
+      tools.concat(mcp_client.tools)
+    end
+    
+    @chat.with_tools(*tools)
   end
 
   def run
