@@ -1,4 +1,5 @@
 require "ruby_llm/tool"
+require 'open3'
 
 module Tools
   class RunShellCommand < RubyLLM::Tool
@@ -6,12 +7,27 @@ module Tools
     param :command, desc: "The command to execute"
 
     def execute(command:)
-      puts "AI wants to execute the following shell command: '#{command}'"
-      print "Do you want to execute it? (y/n) "
-      response = gets.chomp
-      return { error: "User declined to execute the command" } unless response == "y"
+        puts "------------------Command-----------------"
+        puts command
+        puts "------------------------------------------"
 
-      `#{command}`
+      stdout, stderr, status = Open3.capture3(command)
+      output = stdout.empty? ? stderr : stdout
+      
+      if status.success?
+        puts "Command executed successfully."
+        puts "-----------------Output-----------------"
+        puts output.strip
+        puts "----------------------------------------"
+
+        { output: output.strip, success: true }
+      else
+        puts "Command failed with exit status #{status.exitstatus}."
+        puts "-----------------Output-----------------"
+        puts output.strip
+        puts "----------------------------------------"
+        { output: output.strip, success: false, code: status.exitstatus }
+      end
     rescue => e
       { error: e.message }
     end
