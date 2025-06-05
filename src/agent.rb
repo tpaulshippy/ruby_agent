@@ -16,7 +16,7 @@ class Agent
     @chat = RubyLLM.chat(model: model_id, provider: provider, assume_model_exists: provider == 'ollama')
     @chat.with_instructions <<~INSTRUCTIONS
       Perform the tasks requested as quickly as possible.
-      /no_think
+      When you call a tool, tell me what tool you called.
     INSTRUCTIONS
 
     @token_tracker = TokenTracker.new
