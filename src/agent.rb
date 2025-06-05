@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'uri'
+require 'net/http'
 require 'ruby_llm'
 require 'ruby_llm/mcp'
 require_relative 'tools/write_plan'
@@ -31,9 +33,15 @@ class Agent
     end
 
     if ARGV.delete('--planner')
-      chat.with_instructions File.read('prompts/planner.txt')
+      prompt = File.read('prompts/planner.txt')
+      
+      if url?(prompt.strip)
+        prompt = download_prompt(prompt.strip)
+      end
+      
+      chat.with_instructions prompt
 
-      files = Tools::ListFiles.new.execute(path: '', recursive: true)
+      files = Tools::ListFiles.new.execute(path: '')
       raise files[:error] if files.is_a?(Hash) && files.key?(:error)
 
       chat.with_instructions "Found files:\n#{files.join('\n')}"
@@ -61,6 +69,31 @@ class Agent
     chat.with_tools(*tools)
   end
 
+  private
+
+  def url?(string)
+    uri = URI.parse(string)
+    uri.is_a?(URI::HTTP) || uri.is_a?(URI::HTTPS)
+  rescue URI::InvalidURIError
+    false
+  end
+
+  def download_prompt(url)
+    uri = URI.parse(url)
+    response = Net::HTTP.get_response(uri)
+    if response.is_a?(Net::HTTPSuccess)
+      response.body
+    else
+      puts "Warning: Could not download prompt from URL: #{url} (HTTP #{response.code})"
+      url
+    end
+  rescue StandardError => e
+    puts "Warning: Could not download prompt from URL: #{url} (#{e.message})"
+    url
+  end
+
+  public
+
   def setup_event_handlers
     chat.on_new_message do
       puts 'Assistant is typing...'
@@ -75,6 +108,7 @@ class Agent
         end
         puts "Calling tools: #{tool_names.join(', ')}"
       else
+        puts message.inspect
         puts ''
         puts 'Response complete!'
       end
@@ -138,14 +172,8 @@ class Agent
         next
       end
 
-      if @plan
-        # If we're in the middle of a plan, continue with the next step
-        next_step
-      else
-        # Normal chat interaction
-        chat.ask user_input do |chunk|
-          print chunk.content
-        end
+      chat.ask user_input do |chunk|
+        print chunk.content
       end
     end
   end
