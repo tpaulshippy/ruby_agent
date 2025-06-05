@@ -4,7 +4,7 @@ require 'ruby_llm/tool'
 
 module Tools
   class WritePlan < RubyLLM::Tool
-    description "Write the plan to a markdown file"
+    description 'Write the plan to a markdown file'
     param :content, desc: 'Detailed plan in markdown'
     param :title, desc: 'Title of the plan'
 

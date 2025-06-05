@@ -18,9 +18,9 @@ class Agent
     model_id = ENV.fetch('MODEL_ID', 'qwen3:14b')
     provider = ENV.fetch('PROVIDER', 'ollama')
     @chat = RubyLLM.chat(model: model_id, provider: provider, assume_model_exists: provider == 'ollama')
-    
+
     @plan = nil
-    
+
     # Handle --plan argument
     if plan_arg = ARGV.find { |arg| arg.start_with?('--plan=') }&.split('=')&.last
       plan_path = plan_arg.include?('/') ? plan_arg : File.join('plans', "#{plan_arg}.md")
@@ -32,12 +32,13 @@ class Agent
 
       files = Tools::ListFiles.new.execute(path: '', recursive: true)
       raise files[:error] if files.is_a?(Hash) && files.key?(:error)
+
       chat.with_instructions "Found files:\n#{files.join('\n')}"
 
       tools = [
         Tools::WritePlan,
         Tools::ReadFile,
-        Tools::ListFiles,
+        Tools::ListFiles
       ]
     else
       chat.with_instructions File.read("prompts/#{model_id}.txt")
@@ -60,7 +61,7 @@ class Agent
 
   def setup_event_handlers
     chat.on_new_message do
-      puts "Assistant is typing..."
+      puts 'Assistant is typing...'
     end
     chat.on_end_message do |message|
       return unless message
@@ -72,8 +73,8 @@ class Agent
         end
         puts "Calling tools: #{tool_names.join(', ')}"
       else
-        puts ""
-        puts "Response complete!"
+        puts ''
+        puts 'Response complete!'
       end
 
       if message.output_tokens
@@ -97,11 +98,11 @@ class Agent
 
   def run
     puts "Chat with the agent. Type 'exit' to ... well, exit"
-    puts "Special commands:"
-    puts "  /tokens - Show session token usage"
-    puts "  /global_tokens - Show global token usage"
-    puts "  /reset_tokens - Reset session token counters"
-    puts "  /plan <name> - Execute a plan from the plans/ directory (or use --plan=name)"
+    puts 'Special commands:'
+    puts '  /tokens - Show session token usage'
+    puts '  /global_tokens - Show global token usage'
+    puts '  /reset_tokens - Reset session token counters'
+    puts '  /plan <name> - Execute a plan from the plans/ directory (or use --plan=name)'
 
     setup_event_handlers
 
@@ -128,8 +129,8 @@ class Agent
         token_tracker.reset_session
         puts 'Session token counters reset.'
         next
-      when /^\/plan\s+(.+)/
-        plan_name = $1.strip
+      when %r{^/plan\s+(.+)}
+        plan_name = ::Regexp.last_match(1).strip
         plan_path = plan_name.include?('/') ? plan_name : File.join('plans', "#{plan_name}.md")
         load_plan(plan_path)
         next

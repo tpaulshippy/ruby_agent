@@ -86,7 +86,6 @@ class TokenTracker
         model_info: model_info
       }
     end
-
   rescue RubyLLM::ModelNotFoundError
     {
       input_cost: 0.0,

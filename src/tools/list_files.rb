@@ -26,9 +26,7 @@ module Tools
       Dir.glob(File.join(path, '*')).each do |filename|
         if File.directory?(filename)
           results << "#{filename}/"
-          if current_depth < max_depth
-            list_files_recursively(filename, results, current_depth + 1, max_depth)
-          end
+          list_files_recursively(filename, results, current_depth + 1, max_depth) if current_depth < max_depth
         else
           results << filename
         end
