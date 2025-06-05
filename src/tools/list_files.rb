@@ -6,10 +6,9 @@ module Tools
   class ListFiles < RubyLLM::Tool
     description 'Recursively list files and directories at a given path. If no path is provided, lists files in the current directory.'
     param :path, desc: 'Optional relative path to list files from. Defaults to current directory if not provided.'
-    param :recursive, desc: 'If true, recursively list all files and subdirectories'
     param :max_depth, desc: 'Maximum depth to recurse into directories'
 
-    def execute(path: '', recursive: false, max_depth: 10)
+    def execute(path: '', max_depth: 10)
       current_path = File.expand_path(path)
       return { error: 'Path does not exist' } unless Dir.exist?(current_path)
 
