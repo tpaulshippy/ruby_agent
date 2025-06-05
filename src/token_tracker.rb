@@ -86,6 +86,15 @@ class TokenTracker
         model_info: model_info
       }
     end
+
+  rescue RubyLLM::ModelNotFoundError
+    {
+      input_cost: 0.0,
+      output_cost: 0.0,
+      total_cost: 0.0,
+      pricing_available: false,
+      model_info: nil
+    }
   end
 
   def format_cost(cost)
