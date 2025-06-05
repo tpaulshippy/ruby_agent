@@ -18,6 +18,14 @@ class Agent
     model_id = ENV.fetch('MODEL_ID', 'qwen3:14b')
     provider = ENV.fetch('PROVIDER', 'ollama')
     @chat = RubyLLM.chat(model: model_id, provider: provider, assume_model_exists: provider == 'ollama')
+    
+    @plan = nil
+    
+    # Handle --plan argument
+    if plan_arg = ARGV.find { |arg| arg.start_with?('--plan=') }&.split('=')&.last
+      plan_path = plan_arg.include?('/') ? plan_arg : File.join('plans', "#{plan_arg}.md")
+      load_plan(plan_path) || exit(1)
+    end
 
     if ARGV.delete('--planner')
       chat.with_instructions File.read('prompts/planner.txt')
@@ -75,15 +83,36 @@ class Agent
     end
   end
 
+  def load_plan(plan_path)
+    if File.exist?(plan_path)
+      @plan = File.read(plan_path)
+      chat.with_instructions(File.read('prompts/plan_executor.txt'))
+      puts "Loaded plan with #{@plan.size} characters"
+      true
+    else
+      puts "Plan not found: #{plan_path}"
+      false
+    end
+  end
+
   def run
     puts "Chat with the agent. Type 'exit' to ... well, exit"
-    puts "Special commands: '/tokens' (session stats), '/global_tokens' (global stats), '/reset_tokens' (reset session)"
+    puts "Special commands:"
+    puts "  /tokens - Show session token usage"
+    puts "  /global_tokens - Show global token usage"
+    puts "  /reset_tokens - Reset session token counters"
+    puts "  /plan <name> - Execute a plan from the plans/ directory (or use --plan=name)"
 
     setup_event_handlers
 
     loop do
-      print '> '
-      user_input = gets.chomp
+      if @plan
+        user_input = @plan
+        @plan = nil
+      else
+        print '> '
+        user_input = gets.chomp
+      end
 
       case user_input
       when 'exit'
@@ -99,10 +128,21 @@ class Agent
         token_tracker.reset_session
         puts 'Session token counters reset.'
         next
+      when /^\/plan\s+(.+)/
+        plan_name = $1.strip
+        plan_path = plan_name.include?('/') ? plan_name : File.join('plans', "#{plan_name}.md")
+        load_plan(plan_path)
+        next
       end
 
-      chat.ask user_input do |chunk|
-        print chunk.content
+      if @plan
+        # If we're in the middle of a plan, continue with the next step
+        next_step
+      else
+        # Normal chat interaction
+        chat.ask user_input do |chunk|
+          print chunk.content
+        end
       end
     end
   end
