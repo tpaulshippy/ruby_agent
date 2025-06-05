@@ -1,4 +1,6 @@
-require "ruby_llm/tool"
+# frozen_string_literal: true
+
+require 'ruby_llm/tool'
 
 module Tools
   class EditFile < RubyLLM::Tool
@@ -10,14 +12,14 @@ module Tools
 
       If the file specified with path doesn't exist, it will be created.
     DESCRIPTION
-    param :path, desc: "The path to the file"
-    param :old_str, desc: "Text to search for - must match exactly and must only have one match exactly"
-    param :new_str, desc: "Text to replace old_str with"
+    param :path, desc: 'The path to the file'
+    param :old_str, desc: 'Text to search for - must match exactly and must only have one match exactly'
+    param :new_str, desc: 'Text to replace old_str with'
 
     def execute(path:, old_str:, new_str:)
-      content = File.exist?(path) ? File.read(path) : ""
+      content = File.exist?(path) ? File.read(path) : ''
       File.write(path, content.sub(old_str, new_str))
-    rescue => e
+    rescue StandardError => e
       { error: e.message }
     end
   end

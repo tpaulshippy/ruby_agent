@@ -1,11 +1,14 @@
-source "https://rubygems.org"
+# frozen_string_literal: true
 
-gem "ruby_llm"
-gem "ruby_llm-mcp"
-gem "dotenv"
-gem "aws-sdk-core"
+source 'https://rubygems.org'
+
+gem 'aws-sdk-core'
+gem 'dotenv'
+gem 'ruby_llm'
+gem 'ruby_llm-mcp'
 
 group :development, :test do
-  gem "debug"
-  gem "minitest"
+  gem 'debug'
+  gem 'minitest'
+  gem 'rubocop'
 end
