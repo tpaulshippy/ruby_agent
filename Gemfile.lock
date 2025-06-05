@@ -41,7 +41,6 @@ GEM
     lint_roller (1.1.0)
     logger (1.7.0)
     marcel (1.0.4)
-    minitest (5.25.5)
     multipart-post (2.4.1)
     net-http (0.6.0)
       uri
@@ -109,7 +108,6 @@ DEPENDENCIES
   aws-sdk-core
   debug
   dotenv
-  minitest
   rubocop
   ruby_llm
   ruby_llm-mcp
