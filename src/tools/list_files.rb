@@ -3,6 +3,7 @@
 require 'ruby_llm/tool'
 
 module Tools
+  # A tool for listing files and directories.
   class ListFiles < RubyLLM::Tool
     description 'Recursively list files and directories at a given path. If no path is provided, lists files in the current directory.'
     param :path, desc: 'Optional relative path to list files from. Defaults to current directory if not provided.'

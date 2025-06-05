@@ -4,6 +4,7 @@ require 'ruby_llm/tool'
 require 'open3'
 
 module Tools
+  # A tool for executing shell commands.
   class RunShellCommand < RubyLLM::Tool
     description 'Execute a linux shell command'
     param :command, desc: 'The command to execute'

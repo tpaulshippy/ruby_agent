@@ -10,6 +10,7 @@ require_relative 'tools/run_shell_command'
 require_relative 'mcp/client'
 require_relative 'token_tracker'
 
+# A class representing an agent.
 class Agent
   attr_reader :chat, :token_tracker
 

@@ -4,6 +4,7 @@ require 'json'
 require 'fileutils'
 require 'time'
 
+# A class for tracking tokens.
 class TokenTracker
   GLOBAL_STATS_FILE = File.expand_path('~/.ruby_agent_token_stats.json')
 
