@@ -23,6 +23,7 @@ class Agent
 
     # Handle --plan argument
     if plan_arg = ARGV.find { |arg| arg.start_with?('--plan=') }&.split('=')&.last
+      ARGV.delete_if { |arg| arg.start_with?('--plan=') }
       plan_path = plan_arg.include?('/') ? plan_arg : File.join('plans', "#{plan_arg}.md")
       load_plan(plan_path) || exit(1)
     end
