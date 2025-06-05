@@ -1,0 +1,2 @@
+Perform the tasks requested as quickly as possible.
+When you call a tool, tell me what tool you called
