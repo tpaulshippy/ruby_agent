@@ -19,6 +19,7 @@ class Agent
     model_id = ENV.fetch('MODEL_ID', 'qwen3:14b')
     provider = ENV.fetch('PROVIDER', 'ollama')
     @chat = RubyLLM.chat(model: model_id, provider: provider, assume_model_exists: provider == 'ollama')
+    chat.with_instructions File.read("prompts/#{model_id}.txt")
 
     @plan = nil
 
@@ -43,7 +44,6 @@ class Agent
         Tools::ListFiles
       ]
     else
-      chat.with_instructions File.read("prompts/#{model_id}.txt")
       tools = [
         Tools::ReadFile,
         Tools::ListFiles,
