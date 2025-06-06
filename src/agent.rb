@@ -15,19 +15,14 @@ require_relative 'token_tracker'
 
 # A class representing an agent.
 class Agent
-  attr_reader :chat, :token_tracker, :active_tools, :available_tools
+  attr_reader :chat, :token_tracker, :active_tools, :available_tools, :system_prompt
 
   def initialize
     @token_tracker = TokenTracker.new
-    model_id = ENV.fetch('MODEL_ID', 'qwen3:14b')
-    provider = ENV.fetch('PROVIDER', 'ollama')
-    @chat = RubyLLM.chat(model: model_id, provider: provider, assume_model_exists: provider == 'ollama')
-    system_prompt = File.read("prompts/#{model_id}.txt")
-
     @plan = nil
     @active_tools = []
     @available_tools = build_tool_mapping
-
+    
     # Handle --plan argument
     if (plan_arg = ARGV.find { |arg| arg.start_with?('--plan=') }&.split('=')&.last)
       ARGV.delete_if { |arg| arg.start_with?('--plan=') }
@@ -37,10 +32,8 @@ class Agent
     end
 
     if ARGV.delete('--planner')
-      system_prompt += "\n\n#{File.read('prompts/planner.txt')}"
-
+      @system_prompt += "\n\n#{File.read('prompts/planner.txt')}"
       @active_tools = ['SavePlan', 'ReadFile', 'ListFiles']
-      chat.with_tools(*@active_tools)
     else
       mcp_client = MCP::Client.from_json_file || MCP::Client.from_env
       if mcp_client
@@ -49,7 +42,7 @@ class Agent
       end
     end
 
-    chat.with_instructions(system_prompt)
+    setup_chat
   end
 
   private
@@ -71,17 +64,22 @@ class Agent
 
     unless @active_tools.include?(tool_name)
       @active_tools << tool_name
-      tools_to_enable = @active_tools.map do |name|
-        tool = @available_tools[name]
-        tool.is_a?(Proc) ? tool.call : tool
-      end
-      chat.with_tools(*tools_to_enable)
+      chat.with_tools(*resolve_tools)
       list_available_tools
       return true
     end
 
     puts "⚠️  Tool #{tool_name} is already active"
     false
+  end
+
+  private
+
+  def resolve_tools
+    @active_tools.map do |name|
+      tool = @available_tools[name]
+      tool.is_a?(Proc) ? tool.call : tool
+    end
   end
 
   def list_available_tools
@@ -139,6 +137,12 @@ class Agent
       ''
     end
   end
+  
+  def reset_chat
+    setup_chat
+    puts "Chat has been reset with the system message and #{@active_tools.size} active tools."
+  end
+
 
   def run
     puts "Chat with the agent. Type 'exit' to ... well, exit"
@@ -146,11 +150,10 @@ class Agent
     puts '  /tokens - Show session token usage'
     puts '  /global_tokens - Show global token usage'
     puts '  /reset_tokens - Reset session token counters'
+    puts '  /reset - Reinitialize the chat with system message and tools'
     puts '  /plan <name> - Execute a plan from the plans/ directory (or use --plan=name)'
     puts '  /tool:<ToolName> - Add a tool dynamically (e.g., /tool:ReadFile)'
     puts '  /tools - List available and active tools'
-
-    setup_event_handlers
 
     loop do
       if @plan
@@ -165,6 +168,9 @@ class Agent
       when 'exit'
         token_tracker.display_session_summary
         break
+      when '/reset'
+        reset_chat
+        next
       when '/tokens'
         token_tracker.display_session_summary
         next
@@ -194,4 +200,22 @@ class Agent
       end
     end
   end
+  
+  private
+  
+  def setup_chat
+    model_id = ENV.fetch('MODEL_ID', 'qwen3:14b')
+    @system_prompt = File.read("prompts/#{model_id}.txt")
+    
+    @chat = RubyLLM.chat(
+      model: model_id, 
+      provider: ENV.fetch('PROVIDER', 'ollama'), 
+      assume_model_exists: ENV.fetch('PROVIDER', 'ollama') == 'ollama'
+    )
+
+    chat.with_tools(*resolve_tools) if @active_tools&.any?
+    chat.with_instructions(system_prompt)
+    setup_event_handlers
+  end
+
 end
