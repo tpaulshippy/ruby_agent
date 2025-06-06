@@ -9,12 +9,13 @@ require_relative 'tools/read_file'
 require_relative 'tools/list_files'
 require_relative 'tools/edit_file'
 require_relative 'tools/run_shell_command'
+require_relative 'tools/empower'
 require_relative 'mcp/client'
 require_relative 'token_tracker'
 
 # A class representing an agent.
 class Agent
-  attr_reader :chat, :token_tracker
+  attr_reader :chat, :token_tracker, :active_tools
 
   def initialize
     @token_tracker = TokenTracker.new
@@ -36,7 +37,7 @@ class Agent
     end
 
     if ARGV.delete('--planner')
-      system_prompt += "\n\n" + File.read('prompts/planner.txt')
+      system_prompt += "\n\n#{File.read('prompts/planner.txt')}"
 
       @active_tools = [Tools::SavePlan, Tools::ReadFile, Tools::ListFiles]
       chat.with_tools(*@active_tools)
@@ -59,16 +60,22 @@ class Agent
       'ListFiles' => Tools::ListFiles,
       'EditFile' => Tools::EditFile,
       'RunShellCommand' => Tools::RunShellCommand,
-      'SavePlan' => Tools::SavePlan
+      'SavePlan' => Tools::SavePlan,
+      'Empower' => -> { Tools::Empower.new(self) }
     }
   end
 
   def add_tool(tool_name)
-    tool_class = @available_tools[tool_name]
-    return false unless tool_class
+    tool_class_or_proc = @available_tools[tool_name]
+    return false unless tool_class_or_proc
 
-    unless @active_tools.include?(tool_class)
-      @active_tools << tool_class
+    tool_class = tool_class_or_proc.is_a?(Proc) ? tool_class_or_proc.call.class : tool_class_or_proc
+    tool_instance = tool_class_or_proc.is_a?(Proc) ? tool_class_or_proc.call : nil
+
+    unless @active_tools.include?(tool_class) || (tool_instance && @active_tools.any? do |t|
+      t.instance_of?(tool_class)
+    end)
+      @active_tools << (tool_instance || tool_class)
       chat.with_tools(*@active_tools)
       puts "✅ Added tool: #{tool_name}"
       return true
@@ -115,18 +122,6 @@ class Agent
     end
     chat.on_end_message do |message|
       return unless message
-
-      if message.tool_call?
-        tool_names = []
-        message.tool_calls.each_value do |tool_call|
-          tool_names << tool_call.name
-        end
-        puts "Calling tools: #{tool_names.join(', ')}"
-      else
-        puts '*' * 80
-        puts chat.messages.inspect
-        puts '*' * 80
-      end
 
       if message.output_tokens
         usage_stats = token_tracker.track_usage(message)
