@@ -51,12 +51,16 @@ class Agent
   # Delegate tool management methods to the ToolManager
   def add_tool(tool_name)
     if @tool_manager.add_tool(tool_name)
-      chat.with_tools(*@tool_manager.resolve_tools)
+      enable_tools
       @tool_manager.list_available_tools
       true
     else
       false
     end
+  end
+
+  def enable_tools
+    chat.with_tools(*@tool_manager.resolve_tools)
   end
   
   def remove_tool(tool_name)
@@ -125,7 +129,7 @@ class Agent
   
   def reset_chat
     setup_chat
-    chat.with_tools(*@tool_manager.resolve_tools)
+    enable_tools
     puts "Chat has been reset with the system message and #{active_tools.size} active tools."
   end
 

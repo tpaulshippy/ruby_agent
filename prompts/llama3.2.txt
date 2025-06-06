@@ -12,3 +12,4 @@ You can enable the tools below to assist you in your task:
 - Enabler: Enable a tool to use.
 
 If the tool you need is not enabled, use the Enabler tool to enable it. Then call the tool based on the user's request.
+If you need a new tool, use the Empower tool to generate a new tool. Then call the tool based on the user's request.

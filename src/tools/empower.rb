@@ -107,7 +107,7 @@ module Tools
     def add_tool_to_agent(tool_class, tool_name)
       @agent.active_tools << tool_name
       @agent.available_tools[tool_name] = tool_class
-      @agent.chat.with_tools(*@agent.active_tools)
+      @agent.enable_tools
       puts "✅ Successfully evaluated and added tool: #{tool_name}"
       { success: true, message: "Tool #{tool_name} has been evaluated and added to the chat" }
     end
