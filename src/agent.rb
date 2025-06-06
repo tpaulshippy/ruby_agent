@@ -10,18 +10,18 @@ require_relative 'tools/list_files'
 require_relative 'tools/edit_file'
 require_relative 'tools/run_shell_command'
 require_relative 'tools/empower'
+require_relative 'tools/tool_manager'
 require_relative 'mcp/client'
 require_relative 'token_tracker'
 
 # A class representing an agent.
 class Agent
-  attr_reader :chat, :token_tracker, :active_tools, :available_tools, :system_prompt
+  attr_reader :chat, :token_tracker, :tool_manager, :system_prompt
 
   def initialize
     @token_tracker = TokenTracker.new
     @plan = nil
-    @active_tools = []
-    @available_tools = build_tool_mapping
+    @tool_manager = ToolManager.new(self)
     
     # Handle --plan argument
     if (plan_arg = ARGV.find { |arg| arg.start_with?('--plan=') }&.split('=')&.last)
@@ -33,61 +33,43 @@ class Agent
 
     if ARGV.delete('--planner')
       @system_prompt += "\n\n#{File.read('prompts/planner.txt')}"
-      @active_tools = ['SavePlan', 'ReadFile', 'ListFiles']
+      ['SavePlan', 'ReadFile', 'ListFiles'].each { |tool| @tool_manager.add_tool(tool) }
     else
       mcp_client = MCP::Client.from_json_file || MCP::Client.from_env
       if mcp_client
         # puts 'MCP client connected. Adding MCP tools...'
-        # tools.concat(mcp_client.tools)
+        # mcp_client.tools.each { |tool| @tool_manager.add_tool(tool) }
       end
     end
 
     setup_chat
   end
 
-  private
-
-  def build_tool_mapping
-    {
-      'ReadFile' => Tools::ReadFile,
-      'ListFiles' => Tools::ListFiles,
-      'EditFile' => Tools::EditFile,
-      'RunShellCommand' => Tools::RunShellCommand,
-      'SavePlan' => Tools::SavePlan,
-      'Empower' => -> { Tools::Empower.new(self) }
-    }
-  end
-
+  # Delegate tool management methods to the ToolManager
   def add_tool(tool_name)
-    tool_class_or_proc = @available_tools[tool_name]
-    return false unless tool_class_or_proc
-
-    unless @active_tools.include?(tool_name)
-      @active_tools << tool_name
-      chat.with_tools(*resolve_tools)
-      list_available_tools
-      return true
-    end
-
-    puts "⚠️  Tool #{tool_name} is already active"
-    false
-  end
-
-  private
-
-  def resolve_tools
-    @active_tools.map do |name|
-      tool = @available_tools[name]
-      tool.is_a?(Proc) ? tool.call : tool
+    if @tool_manager.add_tool(tool_name)
+      chat.with_tools(*@tool_manager.resolve_tools)
+      @tool_manager.list_available_tools
+      true
+    else
+      false
     end
   end
-
+  
+  def remove_tool(tool_name)
+    @tool_manager.remove_tool(tool_name)
+  end
+  
   def list_available_tools
-    puts "\nTools:"
-    @available_tools.each_key do |tool_name|
-      status = @active_tools.include?(tool_name) ? '✅' : '⭕'
-      puts "  #{status} #{tool_name}"
-    end
+    @tool_manager.list_available_tools
+  end
+  
+  def active_tools
+    @tool_manager.active_tools
+  end
+  
+  def available_tools
+    @tool_manager.available_tools
   end
 
   def url?(string)
@@ -186,7 +168,11 @@ class Agent
         next
       when %r{^/tool:(.+)}
         tool_name = ::Regexp.last_match(1).strip
-        add_tool(tool_name)
+        if add_tool(tool_name)
+          puts "✅ Enabled tool: #{tool_name}"
+        else
+          puts "⚠️  Unknown tool: #{tool_name}"
+        end
         next
       when %r{^/plan\s+(.+)}
         plan_name = ::Regexp.last_match(1).strip
