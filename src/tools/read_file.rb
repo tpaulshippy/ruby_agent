@@ -9,7 +9,11 @@ module Tools
     param :path, desc: 'The relative path of a file in the working directory.'
 
     def execute(path:)
-      File.read(path)
+      content = {}
+      File.read(path).split("\n").each_with_index do |line, index|
+        content[index + 1] = line
+      end
+      content
     rescue StandardError => e
       { error: e.message }
     end
