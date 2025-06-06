@@ -16,6 +16,8 @@ module Tools
 
         def execute(param_name:)
           # Implementation of the tool
+        rescue StandardError => e
+          { error: e.message }
         end
       end
       ```
@@ -31,12 +33,15 @@ module Tools
 
     def execute(code:, tool_name:)
       evaluate_and_add_tool(code, tool_name)
+    rescue StandardError => e
+      { error: "Failed to evaluate tool code: #{e.message}" }
     end
 
     private
 
     def evaluate_and_add_tool(code, tool_name)
       log_evaluation(code)
+      code = code.gsub('\n', ' ')
       eval(code, TOPLEVEL_BINDING)
 
       tool_class = find_tool_class(tool_name)
