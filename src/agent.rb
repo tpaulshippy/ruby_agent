@@ -15,7 +15,7 @@ require_relative 'token_tracker'
 
 # A class representing an agent.
 class Agent
-  attr_reader :chat, :token_tracker, :active_tools
+  attr_reader :chat, :token_tracker, :active_tools, :available_tools
 
   def initialize
     @token_tracker = TokenTracker.new
@@ -39,7 +39,7 @@ class Agent
     if ARGV.delete('--planner')
       system_prompt += "\n\n#{File.read('prompts/planner.txt')}"
 
-      @active_tools = [Tools::SavePlan, Tools::ReadFile, Tools::ListFiles]
+      @active_tools = ['SavePlan', 'ReadFile', 'ListFiles']
       chat.with_tools(*@active_tools)
     else
       mcp_client = MCP::Client.from_json_file || MCP::Client.from_env
@@ -69,15 +69,14 @@ class Agent
     tool_class_or_proc = @available_tools[tool_name]
     return false unless tool_class_or_proc
 
-    tool_class = tool_class_or_proc.is_a?(Proc) ? tool_class_or_proc.call.class : tool_class_or_proc
-    tool_instance = tool_class_or_proc.is_a?(Proc) ? tool_class_or_proc.call : nil
-
-    unless @active_tools.include?(tool_class) || (tool_instance && @active_tools.any? do |t|
-      t.instance_of?(tool_class)
-    end)
-      @active_tools << (tool_instance || tool_class)
-      chat.with_tools(*@active_tools)
-      puts "✅ Added tool: #{tool_name}"
+    unless @active_tools.include?(tool_name)
+      @active_tools << tool_name
+      tools_to_enable = @active_tools.map do |name|
+        tool = @available_tools[name]
+        tool.is_a?(Proc) ? tool.call : tool
+      end
+      chat.with_tools(*tools_to_enable)
+      list_available_tools
       return true
     end
 
@@ -88,7 +87,7 @@ class Agent
   def list_available_tools
     puts "\nTools:"
     @available_tools.each_key do |tool_name|
-      status = @active_tools.any? { |tool| tool.name.split('::').last == tool_name } ? '✅' : '⭕'
+      status = @active_tools.include?(tool_name) ? '✅' : '⭕'
       puts "  #{status} #{tool_name}"
     end
   end
@@ -118,7 +117,7 @@ class Agent
 
   def setup_event_handlers
     chat.on_new_message do
-      puts 'Assistant is typing...'
+      # puts 'Assistant is typing...'
     end
     chat.on_end_message do |message|
       return unless message

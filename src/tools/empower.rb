@@ -33,25 +33,41 @@ module Tools
 
     def execute(code:, tool_name:)
       evaluate_and_add_tool(code, tool_name)
-    rescue StandardError => e
-      { error: "Failed to evaluate tool code: #{e.message}" }
     end
 
     private
 
     def evaluate_and_add_tool(code, tool_name)
       log_evaluation(code)
-      code = code.gsub('\n', ' ')
-      eval(code, TOPLEVEL_BINDING)
+      
+      # First validate the syntax
+      syntax_ok, error = validate_ruby_syntax(code)
+      unless syntax_ok
+        return { error: "Invalid Ruby syntax: #{error}" }
+      end
 
-      tool_class = find_tool_class(tool_name)
-      handle_evaluation_result(tool_class, tool_name)
-    rescue StandardError => e
-      { error: "Failed to evaluate tool code: #{e.message}" }
+      # If syntax is valid, proceed with evaluation
+      begin
+        eval(code, TOPLEVEL_BINDING)
+        tool_class = find_tool_class(tool_name)
+        handle_evaluation_result(tool_class, tool_name)
+      rescue StandardError => e
+        { error: "Failed to evaluate tool code: #{e.message}" }
+      end
+    end
+    
+    def validate_ruby_syntax(code)
+      # Create a RubyVM::InstructionSequence to check syntax
+      RubyVM::InstructionSequence.compile(code)
+      [true, nil]
+    rescue SyntaxError => e
+      # Extract just the error message without the code snippet
+      error_message = e.message.lines.first.chomp
+      [false, error_message]
     end
 
     def log_evaluation(code)
-      puts '----------------Evaluating Tool Code----------------'
+      puts '----------------Empowering Tool Code----------------'
       puts code
       puts '---------------------------------------------------'
     end
@@ -89,7 +105,8 @@ module Tools
     end
 
     def add_tool_to_agent(tool_class, tool_name)
-      @agent.active_tools << tool_class
+      @agent.active_tools << tool_name
+      @agent.available_tools[tool_name] = tool_class
       @agent.chat.with_tools(*@agent.active_tools)
       puts "✅ Successfully evaluated and added tool: #{tool_name}"
       { success: true, message: "Tool #{tool_name} has been evaluated and added to the chat" }
