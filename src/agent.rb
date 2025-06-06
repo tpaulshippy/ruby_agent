@@ -126,7 +126,7 @@ class Agent
   def reset_chat
     setup_chat
     chat.with_tools(*@tool_manager.resolve_tools)
-    puts "Chat has been reset with the system message and #{@active_tools.size} active tools."
+    puts "Chat has been reset with the system message and #{active_tools.size} active tools."
   end
 
 
