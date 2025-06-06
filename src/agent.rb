@@ -10,7 +10,8 @@ require_relative 'tools/list_files'
 require_relative 'tools/edit_file'
 require_relative 'tools/run_shell_command'
 require_relative 'tools/empower'
-require_relative 'tools/tool_manager'
+require_relative 'tools/enabler'
+require_relative 'tool_manager'
 require_relative 'mcp/client'
 require_relative 'token_tracker'
 
@@ -22,6 +23,7 @@ class Agent
     @token_tracker = TokenTracker.new
     @plan = nil
     @tool_manager = ToolManager.new(self)
+
     
     # Handle --plan argument
     if (plan_arg = ARGV.find { |arg| arg.start_with?('--plan=') }&.split('=')&.last)
@@ -33,7 +35,7 @@ class Agent
 
     if ARGV.delete('--planner')
       @system_prompt += "\n\n#{File.read('prompts/planner.txt')}"
-      ['SavePlan', 'ReadFile', 'ListFiles'].each { |tool| @tool_manager.add_tool(tool) }
+      ['SavePlan', 'ReadFile', 'ListFiles'].each { |tool| add_tool(tool) }
     else
       mcp_client = MCP::Client.from_json_file || MCP::Client.from_env
       if mcp_client
@@ -43,6 +45,7 @@ class Agent
     end
 
     setup_chat
+    add_tool('Enabler')
   end
 
   # Delegate tool management methods to the ToolManager
@@ -122,6 +125,7 @@ class Agent
   
   def reset_chat
     setup_chat
+    chat.with_tools(*@tool_manager.resolve_tools)
     puts "Chat has been reset with the system message and #{@active_tools.size} active tools."
   end
 
@@ -199,7 +203,6 @@ class Agent
       assume_model_exists: ENV.fetch('PROVIDER', 'ollama') == 'ollama'
     )
 
-    chat.with_tools(*resolve_tools) if @active_tools&.any?
     chat.with_instructions(system_prompt)
     setup_event_handlers
   end

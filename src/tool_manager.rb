@@ -8,7 +8,8 @@ class ToolManager
     'EditFile' => Tools::EditFile,
     'RunShellCommand' => Tools::RunShellCommand,
     'SavePlan' => Tools::SavePlan,
-    'Empower' => ->(agent) { Tools::Empower.new(agent) }
+    'Empower' => ->(agent) { Tools::Empower.new(agent) },
+    'Enabler' => ->(agent) { Tools::Enabler.new(agent) }
   }.freeze
 
   attr_reader :available_tools, :active_tools, :agent
