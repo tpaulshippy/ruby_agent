@@ -9,5 +9,6 @@ gem 'ruby_llm-mcp'
 
 group :development, :test do
   gem 'debug'
+  gem 'rspec'
   gem 'rubocop'
 end

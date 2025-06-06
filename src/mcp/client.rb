@@ -34,8 +34,7 @@ module MCP
       return nil unless File.exist?(file_path)
 
       begin
-        # Remove comments from the JSON file (// comments are not valid in standard JSON)
-        json_content = File.read(file_path).gsub(%r{//.*$}, '')
+        json_content = File.read(file_path)
         config = JSON.parse(json_content)
 
         return nil unless config['mcpServers'] && !config['mcpServers'].empty?

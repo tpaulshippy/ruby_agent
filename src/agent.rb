@@ -4,7 +4,7 @@ require 'uri'
 require 'net/http'
 require 'ruby_llm'
 require 'ruby_llm/mcp'
-require_relative 'tools/write_plan'
+require_relative 'tools/save_plan'
 require_relative 'tools/read_file'
 require_relative 'tools/list_files'
 require_relative 'tools/edit_file'
@@ -21,55 +21,70 @@ class Agent
     model_id = ENV.fetch('MODEL_ID', 'qwen3:14b')
     provider = ENV.fetch('PROVIDER', 'ollama')
     @chat = RubyLLM.chat(model: model_id, provider: provider, assume_model_exists: provider == 'ollama')
-    chat.with_instructions File.read("prompts/#{model_id}.txt")
+    system_prompt = File.read("prompts/#{model_id}.txt")
 
     @plan = nil
+    @active_tools = []
+    @available_tools = build_tool_mapping
 
     # Handle --plan argument
     if (plan_arg = ARGV.find { |arg| arg.start_with?('--plan=') }&.split('=')&.last)
       ARGV.delete_if { |arg| arg.start_with?('--plan=') }
       plan_path = plan_arg.include?('/') ? plan_arg : File.join('plans', "#{plan_arg}.md")
-      load_plan(plan_path) || exit(1)
+      @plan = load_plan(plan_path)
+      exit(1) if @plan.empty?
     end
 
     if ARGV.delete('--planner')
-      prompt = File.read('prompts/planner.txt')
-      
-      if url?(prompt.strip)
-        prompt = download_prompt(prompt.strip)
-      end
-      
-      chat.with_instructions prompt
+      system_prompt += "\n\n" + File.read('prompts/planner.txt')
 
-      files = Tools::ListFiles.new.execute(path: '')
-      raise files[:error] if files.is_a?(Hash) && files.key?(:error)
-
-      chat.with_instructions "Found files:\n#{files.join('\n')}"
-
-      tools = [
-        Tools::WritePlan,
-        Tools::ReadFile,
-        Tools::ListFiles
-      ]
+      @active_tools = [Tools::SavePlan, Tools::ReadFile, Tools::ListFiles]
+      chat.with_tools(*@active_tools)
     else
-      tools = [
-        Tools::ReadFile,
-        Tools::ListFiles,
-        Tools::EditFile,
-        Tools::RunShellCommand
-      ]
-
       mcp_client = MCP::Client.from_json_file || MCP::Client.from_env
       if mcp_client
-        puts 'MCP client connected. Adding MCP tools...'
-        tools.concat(mcp_client.tools)
+        # puts 'MCP client connected. Adding MCP tools...'
+        # tools.concat(mcp_client.tools)
       end
     end
 
-    chat.with_tools(*tools)
+    chat.with_instructions(system_prompt)
   end
 
   private
+
+  def build_tool_mapping
+    {
+      'ReadFile' => Tools::ReadFile,
+      'ListFiles' => Tools::ListFiles,
+      'EditFile' => Tools::EditFile,
+      'RunShellCommand' => Tools::RunShellCommand,
+      'SavePlan' => Tools::SavePlan
+    }
+  end
+
+  def add_tool(tool_name)
+    tool_class = @available_tools[tool_name]
+    return false unless tool_class
+
+    unless @active_tools.include?(tool_class)
+      @active_tools << tool_class
+      chat.with_tools(*@active_tools)
+      puts "✅ Added tool: #{tool_name}"
+      return true
+    end
+
+    puts "⚠️  Tool #{tool_name} is already active"
+    false
+  end
+
+  def list_available_tools
+    puts "\nTools:"
+    @available_tools.each_key do |tool_name|
+      status = @active_tools.any? { |tool| tool.name.split('::').last == tool_name } ? '✅' : '⭕'
+      puts "  #{status} #{tool_name}"
+    end
+  end
 
   def url?(string)
     uri = URI.parse(string)
@@ -108,9 +123,9 @@ class Agent
         end
         puts "Calling tools: #{tool_names.join(', ')}"
       else
-        puts message.inspect
-        puts ''
-        puts 'Response complete!'
+        puts '*' * 80
+        puts chat.messages.inspect
+        puts '*' * 80
       end
 
       if message.output_tokens
@@ -123,12 +138,11 @@ class Agent
   def load_plan(plan_path)
     if File.exist?(plan_path)
       @plan = File.read(plan_path)
-      chat.with_instructions(File.read('prompts/plan_executor.txt'))
       puts "Loaded plan with #{@plan.size} characters"
-      true
+      @plan
     else
       puts "Plan not found: #{plan_path}"
-      false
+      ''
     end
   end
 
@@ -139,6 +153,8 @@ class Agent
     puts '  /global_tokens - Show global token usage'
     puts '  /reset_tokens - Reset session token counters'
     puts '  /plan <name> - Execute a plan from the plans/ directory (or use --plan=name)'
+    puts '  /tool:<ToolName> - Add a tool dynamically (e.g., /tool:ReadFile)'
+    puts '  /tools - List available and active tools'
 
     setup_event_handlers
 
@@ -164,6 +180,13 @@ class Agent
       when '/reset_tokens'
         token_tracker.reset_session
         puts 'Session token counters reset.'
+        next
+      when '/tools'
+        list_available_tools
+        next
+      when %r{^/tool:(.+)}
+        tool_name = ::Regexp.last_match(1).strip
+        add_tool(tool_name)
         next
       when %r{^/plan\s+(.+)}
         plan_name = ::Regexp.last_match(1).strip
