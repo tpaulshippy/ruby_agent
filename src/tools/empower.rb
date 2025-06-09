@@ -39,6 +39,9 @@ module Tools
 
     def evaluate_and_add_tool(code, tool_name)
       log_evaluation(code)
+
+      puts 'Do you want to proceed with adding this tool? (y/n)'
+      return unless gets.chomp == 'y'
       
       # First validate the syntax
       syntax_ok, error = validate_ruby_syntax(code)
