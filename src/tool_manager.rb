@@ -33,11 +33,8 @@ class ToolManager
     false
   end
 
-  def remove_tool(tool_name)
-    return false unless @active_tools.include?(tool_name)
-    
-    @active_tools.delete(tool_name)
-    true
+  def remove_tools
+    @active_tools.clear
   end
 
   def resolve_tools

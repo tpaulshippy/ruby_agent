@@ -42,12 +42,10 @@ module Tools
 
       puts 'Do you want to proceed with adding this tool? (y/n)'
       return unless gets.chomp == 'y'
-      
+
       # First validate the syntax
       syntax_ok, error = validate_ruby_syntax(code)
-      unless syntax_ok
-        return { error: "Invalid Ruby syntax: #{error}" }
-      end
+      return { error: "Invalid Ruby syntax: #{error}" } unless syntax_ok
 
       # If syntax is valid, proceed with evaluation
       begin
@@ -58,7 +56,7 @@ module Tools
         { error: "Failed to evaluate tool code: #{e.message}" }
       end
     end
-    
+
     def validate_ruby_syntax(code)
       # Create a RubyVM::InstructionSequence to check syntax
       RubyVM::InstructionSequence.compile(code)

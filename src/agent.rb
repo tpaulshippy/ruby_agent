@@ -24,7 +24,6 @@ class Agent
     @plan = nil
     @tool_manager = ToolManager.new(self)
 
-    
     # Handle --plan argument
     if (plan_arg = ARGV.find { |arg| arg.start_with?('--plan=') }&.split('=')&.last)
       ARGV.delete_if { |arg| arg.start_with?('--plan=') }
@@ -35,13 +34,13 @@ class Agent
 
     if ARGV.delete('--planner')
       @system_prompt += "\n\n#{File.read('prompts/planner.txt')}"
-      ['SavePlan', 'ReadFile', 'ListFiles'].each { |tool| add_tool(tool) }
+      %w[SavePlan ReadFile ListFiles].each { |tool| add_tool(tool) }
     else
-      mcp_client = MCP::Client.from_json_file || MCP::Client.from_env
-      if mcp_client
-        # puts 'MCP client connected. Adding MCP tools...'
-        # mcp_client.tools.each { |tool| @tool_manager.add_tool(tool) }
-      end
+      # mcp_client = MCP::Client.from_json_file || MCP::Client.from_env
+      # if mcp_client
+      # puts 'MCP client connected. Adding MCP tools...'
+      # mcp_client.tools.each { |tool| @tool_manager.add_tool(tool) }
+      # end
     end
 
     setup_chat
@@ -62,19 +61,20 @@ class Agent
   def enable_tools
     chat.with_tools(*@tool_manager.resolve_tools)
   end
-  
-  def remove_tool(tool_name)
-    @tool_manager.remove_tool(tool_name)
+
+  def remove_tools
+    @tool_manager.remove_tools
+    chat.clear_tools
   end
-  
+
   def list_available_tools
     @tool_manager.list_available_tools
   end
-  
+
   def active_tools
     @tool_manager.active_tools
   end
-  
+
   def available_tools
     @tool_manager.available_tools
   end
@@ -100,8 +100,6 @@ class Agent
     url
   end
 
-  public
-
   def setup_event_handlers
     chat.on_new_message do
       # puts 'Assistant is typing...'
@@ -126,13 +124,12 @@ class Agent
       ''
     end
   end
-  
+
   def reset_chat
     setup_chat
     enable_tools
     puts "Chat has been reset with the system message and #{active_tools.size} active tools."
   end
-
 
   def run
     puts "Chat with the agent. Type 'exit' to ... well, exit"
@@ -144,6 +141,7 @@ class Agent
     puts '  /plan <name> - Execute a plan from the plans/ directory (or use --plan=name)'
     puts '  /tool:<ToolName> - Add a tool dynamically (e.g., /tool:ReadFile)'
     puts '  /tools - List available and active tools'
+    puts '  /reset_tools - Remove all active tools'
 
     loop do
       if @plan
@@ -174,6 +172,10 @@ class Agent
       when '/tools'
         list_available_tools
         next
+      when '/reset_tools'
+        remove_tools
+        puts 'All tools removed.'
+        next
       when %r{^/tool:(.+)}
         tool_name = ::Regexp.last_match(1).strip
         if add_tool(tool_name)
@@ -194,21 +196,20 @@ class Agent
       end
     end
   end
-  
+
   private
-  
+
   def setup_chat
     model_id = ENV.fetch('MODEL_ID', 'qwen3:14b')
     @system_prompt = File.read("prompts/#{model_id}.txt")
-    
+
     @chat = RubyLLM.chat(
-      model: model_id, 
-      provider: ENV.fetch('PROVIDER', 'ollama'), 
+      model: model_id,
+      provider: ENV.fetch('PROVIDER', 'ollama'),
       assume_model_exists: ENV.fetch('PROVIDER', 'ollama') == 'ollama'
     )
 
     chat.with_instructions(system_prompt)
     setup_event_handlers
   end
-
 end
